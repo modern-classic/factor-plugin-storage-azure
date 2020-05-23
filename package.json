@@ -1,0 +1,42 @@
+{
+  "name": "@modern-classic/factor-plugin-storage-azure",
+  "description": "This plugin is designed to configure Factor to use Azure Blob Storage for image storage.",
+  "version": "0.1.0-beta",
+  "license": "GPL-3.0",
+  "main": "index.ts",
+  "author": {
+    "name": "Modern Classic Transportation LLC",
+    "email": "contact@modernclassictrans.com",
+    "url": "https://www.modernclassictrans.com/"
+  },
+  "contributors": [
+    "Seth Murphy <seth.murphy@modernclassictrans.com>"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "factor": {
+    "_id": "storageAzure",
+    "load": [
+      "server"
+    ],
+    "title": "Storage Azure",
+    "permalink": "storage-azure",
+    "category": [
+      "images"
+    ],
+    "themeColor": "#002855"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/modern-classic/factor-plugin-storage-azure"
+  },
+  "bugs": {
+    "url": "https://github.com/modern-classic/factor-plugin-storage-azure/issues"
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.1.2",
+    "@factor/api": "^1.8.0",
+    "@factor/attachment": "^1.7.10"
+  }
+}
