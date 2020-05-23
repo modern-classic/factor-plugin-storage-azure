@@ -81,7 +81,7 @@ async function handleUrl(buffer: Buffer, key: string): Promise<string> {
   if (!service || !containerName || !container) return;
 
   const file = container.getBlockBlobClient(key);
-  await file.upload(buffer, buffer.byteLength);
+  await file.upload(buffer, Buffer.byteLength(buffer));
 
   return file.url;
 }
