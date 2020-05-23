@@ -1,7 +1,7 @@
 {
   "name": "@modern-classic/factor-plugin-storage-azure",
   "description": "This plugin is designed to configure Factor to use Azure Blob Storage for image storage.",
-  "version": "0.1.0-beta",
+  "version": "0.2.0-beta",
   "license": "GPL-3.0",
   "main": "index.ts",
   "author": {
@@ -25,7 +25,7 @@
     "category": [
       "images"
     ],
-    "themeColor": "#002855"
+    "themeColor": "#ffffff"
   },
   "repository": {
     "type": "git",

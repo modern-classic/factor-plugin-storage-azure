@@ -16,7 +16,7 @@
  */
 
 import { addFilter, addCallback } from '@factor/api';
-import { serviceClient } from '@azure/storage-blob';
+import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
 import { PostAttachment } from '@factor/attachment';
 
 /**
@@ -34,37 +34,91 @@ import { PostAttachment } from '@factor/attachment';
  * purpose in your application, we use a unique name for our connection
  * string: FACTOR_AZURE_PLUGIN_CONNECTION_STRING.
  */
-const getService = (): {
-  service: serviceClient | undefined,
+function getService(): {
+  service: BlobServiceClient | undefined,
   containerName: string | undefined,
-} => {
+} {
   const connectionString = process.env.FACTOR_AZURE_PLUGIN_CONNECTION_STRING;
   const containerName = process.env.FACTOR_AZURE_PLUGIN_CONTAINER_NAME;
 
   let service;
 
-  if (connectionString) {
-    service = serviceClient.fromConnectionString(connectionString);
-  }
+  if (connectionString)
+    service = BlobServiceClient.fromConnectionString(connectionString);
 
   return { service, containerName };
 }
 
-export const setup = (): void => {
+/**
+ * Due to the way Azure handles containers and their associated clients,
+ * we abstract the functionality into another function. This way we can
+ * not only get the client, but also ensure the container exists before
+ * passing back to the other functions.
+ *
+ * @returns {ContainerClient} The client for the requested container
+ */
+async function getContainer(): Promise<ContainerClient> {
+  const { service, containerName } = getService();
+  const container = service.getContainerClient(containerName);
+  
+  if (!container.exists())
+    await container.create();
+
+  return container;
+}
+
+/**
+ * Upload the file to Azure and return the URL associated with that file
+ * 
+ * @param {Buffer} buffer The buffer containing the file to be uploaded 
+ * @param {string} key The string identifier Factor generated for the file
+ * 
+ * @returns {Promise<string>} The URL of the uploaded file
+ */
+async function handleUrl(buffer: Buffer, key: string): Promise<string> {
+  const { service, containerName } = getService();
+  const container = await getContainer();
+  if (!service || !containerName || !container) return;
+
+  const file = container.getBlockBlobClient(key);
+  await file.upload(buffer, buffer.byteLength);
+
+  return file.url;
+}
+
+/**
+ * Deletes an image from Azure at the request of Factor
+ * 
+ * @param {PostAttachment} doc The image to be deleted
+ */
+async function handleDelete(doc: PostAttachment) {
+  const { service, containerName } = getService();
+  const container = await getContainer();
+  if (!service || !containerName || !container) return;
+
+  const key = doc.url.split(`${containerName}/`)[1];
+  const file = container.getBlockBlobClient(key);
+
+  await file.delete();
+
+  return;
+}
+
+export function setup(): void {
   if (
     !process.env.FACTOR_AZURE_PLUGIN_CONTAINER_NAME ||
     !process.env.FACTOR_AZURE_PLUGIN_CONNECTION_STRING
   ) {
     addFilter({
-      key: 'azureStorageSetup',
+      key: 'modernClassicAzureStorageSetup',
       hook: 'setup-needed',
       callback: (__: { title: string }[]) => {
         return [
           ...__,
           {
-            title: 'Plugin: Azure Storage Connection String',
+            title: 'Plugin: Azure Storage connection string',
             file: '.env',
-            name: 'FACTOR_AZURE_PLUGIN_CONNECTION_STRING'
+            name: 'FACTOR_AZURE_PLUGIN_CONNECTION_STRING',
           },
         ];
       },
@@ -73,53 +127,16 @@ export const setup = (): void => {
     return;
   }
 
-  /**
-   * Hook into Factor's upload attachment filter
-   * 
-   * @returns {String} The URL for the uploaded resource
-   */
   addFilter({
-    key: 'handleUrlAzure',
+    key: 'modernClassicAzureHandleUrl',
     hook: 'storage-attachment-url',
-    callback: async ({
-      buffer,
-      key,
-    }: {
-      buffer: Buffer,
-      key: string,
-    }) => {
-      const { service, containerName } = getService();
-
-      if (!service || !containerName) return;
-
-      const container = service.getContainerClient(containerName);
-      if (!container.exists()) {
-        await container.create();
-      }
-
-      const file = container.getBlockBlobClient(key);
-      await file.upload(buffer, buffer.byteLength);
-
-      return file.url;
-    }
+    callback: handleUrl,
   });
 
   addCallback({
-    key: 'deleteImageAzure',
+    key: 'modernClassicAzureDeleteImage',
     hook: 'delete-attachment',
-    callback: async (doc: PostAttachment) => {
-      const { service, containerName } = getService();
-
-      if (!service || !containerName) return;
-
-      const container = service.getContainerClient(containerName);
-      const key = doc.url.split(`${containerName}/`)[1];
-      const file = container.getBlockBlobClient(key);
-
-      await file.delete();
-
-      return;
-    }
+    callback: handleDelete,
   });
 }
 
